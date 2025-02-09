@@ -1,0 +1,113 @@
+---
+title: "EDS240-Deep-Sea-Corals"
+author: "Maddy Enda"
+format: html
+editor: visual
+message: false
+warning: false
+echo: true
+
+---
+
+```{r}
+# Load in libraries
+library(tidyverse)
+library(dplyr)
+library(here)
+library(sf)
+library(tmap)
+```
+
+```{r}
+# Load in the coral data
+deep_sea_coral <- read_csv(here("data", "deep_sea_coral.csv"))
+```
+
+```{r}
+# Preliminary exploration
+head(deep_sea_coral)
+```
+```{r}
+# Filter to only US observations
+US_deep_sea_coral <- deep_sea_coral %>%
+  filter(Country == "USA")
+
+# Filter to California observations
+Filtered_deep_sea_coral <- US_deep_sea_coral %>%
+  filter(LargeMarineEcosystem == "California Current")
+
+unique(Filtered_deep_sea_coral$VernacularNameCategory)
+```
+
+
+```{r}
+# Select only relevant columns for initial data vis
+coral_data <- Filtered_deep_sea_coral %>%
+  select(c('ScientificName',
+          'VernacularNameCategory',
+          'Phylum',
+          'Class',
+          'Order',
+          'Genus',
+          'Locality',
+          'latitude',
+          'longitude',
+          'DepthInMeters',
+          'ObservationDate',
+          'ObservationYear'
+          ))
+```
+
+```{r}
+# Remove data points for Oregon, Washington, and specifically Columbia river data
+coral_data_filtered <-coral_data[!grepl("Oregon", coral_data$Locality),]
+coral_data_filtered <-coral_data_filtered[!grepl("Washington", coral_data_filtered$Locality),]
+coral_data_BUTTs <-coral_data_filtered[!grepl("Columbia", coral_data_filtered$Locality),]
+```
+
+```{r}
+# Create the spatial features for the coral sampling sites
+coral_filtered_sf <- st_as_sf(coral_data_BUTTs, coords = c('longitude', 'latitude'))
+
+# Map the data points to get a rough idea of where we are sampling (should give us the outline of California)
+tm_shape(coral_filtered_sf) +
+  tm_dots()
+```
+
+```{r}
+# Check to see what data type the DepthInMeters column is
+class(coral_data_BUTTs$DepthInMeters)
+
+# Convert the depth column to integers
+coral_data_BUTTs$DepthInMeters <- as.integer(coral_data_BUTTs$DepthInMeters)
+```
+
+```{r}
+# Check to see if the above code worked 
+class(coral_data_BUTTs$DepthInMeters)
+
+# Create a mean depth by class variable
+mean_depth_class <- coral_data_BUTTs %>%
+  group_by(Class) %>%
+  mutate(Mean_Depth= mean(DepthInMeters))
+  
+```
+
+
+```{r}
+ggplot(mean_depth_class, aes(x= reorder(Class, Mean_Depth), y= Mean_Depth)) +
+    geom_point(aes(colour = Class, size= 4)) +
+  scale_color_manual(values = c("skyblue", "cornflowerblue", "navy", "blue3", "cornflowerblue","skyblue","blue3" ))+
+  labs(title= "California Deep Sea Biota Distribution By Depth",
+       x= "Organism Class",
+       y= "Depth (m)")+
+  theme_minimal() +
+    theme(
+          legend.position= "none") 
+```
+
+```{r}
+
+```
+
+
